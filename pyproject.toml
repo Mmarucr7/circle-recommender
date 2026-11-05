@@ -1,0 +1,44 @@
+[project]
+name = "circle-recommender"
+version = "0.1.0"
+description = "Recommends Lean In Circles to members, each with a short member-facing explanation."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Manthan" }]
+dependencies = [
+    "fastapi==0.162.0",
+    "pydantic==2.14.3",
+    "uvicorn==0.54.0",
+]
+
+[dependency-groups]
+dev = [
+    "httpx2==2.16.0",
+    "mypy==2.4.1",
+    "pytest==9.2.0",
+    "ruff==0.17.3",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.0,<0.12.0"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "RUF", "N", "C4", "PT", "RET", "ARG", "PL"]
+ignore = ["PLR0913", "PLR2004"]
+
+[tool.mypy]
+strict = true
+python_version = "3.12"
+files = ["src", "tests", "scripts"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+filterwarnings = ["error"]
