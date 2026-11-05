@@ -46,8 +46,43 @@ Circle locations, covering every stated interest early, and opt-in affinity Circ
 
 ## How I used AI tools
 
+I used AI assistance throughout the project as an aid to development. In the initial phase, 
+I used AI to assist in the understanding of the task requirements and possible ways of approaching the 
+development of the recommendation engine. Throughout the implementation, I used AI to better 
+understand the coding, resolve issues, review certain parts of the code, verify SQL queries, 
+and find potential edge cases. I have also used AI assistance to discuss the alternatives for scoring, 
+filtering, ranking, and dealing with cold-start users.I developed the core code, tests, database schema, 
+and documentation for the project on my own. Instead of using AI to generate the final solution, 
+I used it as an aid to development and to provide suggestions for improvement of the code implementation.
+
 ### Where AI helped
+
+AI was extensively throughout the development cycle as an assistant in coding and problem-solving. 
+AI helped me grasp the requirements of the assignment, evaluate the possible ways of implementing the project, 
+solve the coding problems, and enhance certain components of the API and recommendation system. Furthermore, 
+I used AI technology to evaluate SQL queries, find out the possible edge cases, and improve the test cases. 
+While creating the documentation, I used AI technology to proofread the technical design document.
 
 ### What I verified or changed
 
+I independently reviewed AI-generated suggestions before incorporating them into the project. 
+I tested the recommendation logic against the four scenarios specified in the assignment: cold-start users, 
+obvious interest matches, duplicate Circles, and full or inactive Circles. 
+I also ran the evaluation across all 100 users to verify that the API returned sensible recommendations. 
+I checked the scoring calculations, feature weights, filtering rules, ranking behavior, and explanation reason 
+codes to ensure they matched the actual implementation. Whenever an AI suggestion did not 
+fit the dataset or assignment requirements, I modified or rejected it.
+
 ### Decisions I made myself
+
+This project involved making several critical decisions around the technology stack and the 
+recommendation product. To begin with, due to an insufficient amount of join outcome information in the dataset, 
+it was decided that a deterministic, rule based recommendation engine would be more suitable than 
+a machine learning approach. This involved deciding on 5 signals to use during the recommendation process and 
+weighting them accordingly. Hard filters were also decided upon to exclude full, inactive and inaccessible Circles. 
+Additionally, a cold start solution was identified which would allow recommendations to be generated 
+for users with minimal profile information. Template based explanations were also chosen over LLM generated 
+text to ensure recommendations are clear and facts remain consistent. Further decisions were also made which included 
+using SQLite for local replication, a debug mode which would show the scores, limiting the number of near duplicate 
+recommendations and a production solution to scale. The code, tests, database schema and documentation for
+the project were all written. The GitHub repository was also created. However, AI was used to help with coding, debugging and verifying.
