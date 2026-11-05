@@ -14,7 +14,7 @@ GET /users/7/recommendations?limit=3
 
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) 0.11 or newer. It installs Python 3.12 for
   you if needed.
-- `make` and `curl`.
+- `make` and `curl`. On macOS, `make` comes with the Xcode command line tools (`xcode-select --install`).
 
 ## Setup
 

@@ -1,70 +1,48 @@
 # Design: recommending Circles to join
 
-## 1. What was built
+## What I built
 
-`GET /users/{id}/recommendations` returns ranked Circles, each with one member-facing sentence and reason codes.
-Pure, deterministic functions (`recommender/`) run over SQLite, with slow-changing Circle features computed at seed
-time: candidates → hard filters (each with a reason code) → five features in [0, 1] → weighted sum → one result per
-dedupe cluster, at most 2 per topic → template explanation. `?debug=true` exposes every score, weight and filter.
+`GET /users/{id}/recommendations` returns ranked Circles, each with one sentence for the member plus reason codes.
+Pure, deterministic functions run over SQLite: candidates → hard filters → five features in [0, 1] → weighted sum →
+one result per near-duplicate cluster, at most 2 per topic → template explanation. `?debug=true` shows every
+score, weight and filtered Circle. `make evaluate` checks the four scenarios and all 100 members (`SAMPLE_OUTPUT.md`).
 
-## 2. Signals
+## Signals and why
 
-| Used | Weight* | Why |
+| Signal | Weight* | Rationale |
 | --- | --- | --- |
-| Topic match: stated interests vs primary topic (1.0) or tag (0.4); topics of joined Circles at half strength | 0.40 | Strongest statement of intent |
-| Activity: log-scaled posts, chat, engagement per post; recency decay, half-life 14 days | 0.25 | Members join for live connection |
-| Format and location fit (in-person needs the same metro; hybrid boosted when local) | 0.15 | An unreachable Circle is not an option |
-| Profile keywords (bio, job title → topics, small lexicon) | 0.10 | Light: bios are short and generic |
-| Openness: seats left, uncapped size vs 15, open join policy | 0.10 | Room for the member to actually join |
+| Stated interests vs Circle topic (1.0) or tag (0.4); topics of Circles already joined at half strength | 0.40 | Strongest statement of intent |
+| Activity: log-scaled 30-day posts, chat and engagement; recency decay (half-life 14 days) | 0.25 | Members join for live connection |
+| Format and location: virtual fits all; in-person needs the same metro; hybrid boosted when local | 0.15 | An unreachable Circle is no option |
+| Profile keywords (bio, job title) mapped to topics | 0.10 | Light: bios are short and generic |
+| Room to join: seats left, size of uncapped Circles vs 15, open join policy | 0.10 | She has to be able to get in |
 
-\*Personalized weights. New members (≤30 days) move 0.05 from profile to openness. Cold start: activity 0.5,
-location 0.3, openness 0.2.
+\*New members (joined ≤30 days ago) shift 0.05 from profile to room to join. Cold start: activity 0.5, location
+0.3, room 0.2. **Completeness sets trust, not eligibility:** `c = 0.7·interest evidence + 0.3·completeness`
+blends personalized and cold-start weights, so sparse profiles still get full lists.
 
-**Not used:** photos, names, company or any demographic attribute (fairness; irrelevant to fit); cover images
-(missing on very active Circles); Networks and industry (nothing to match); tenure and Circle age (inconsistent
-timestamps). **Hard filters:** full; inactive (no posts in 30 days or >45 days silent, inside the data's 20→227-day
-gap); unlisted; in-person in a known other metro; already joined, or a near-duplicate of a joined Circle.
+**Hard filters** (activity and availability gate a Circle rather than just lowering it): full; inactive (no posts
+in 30 days or >45 days silent, chosen inside the data's 20→227-day gap); unlisted; in-person in a known other
+city; already joined, or a near-duplicate of one. **Not used:** photo, name, company, demographics (fairness;
+irrelevant to fit); cover image (missing on very active Circles); descriptions (one template per topic) and
+industry (nothing to match); Networks (absent); tenure (timestamps inconsistent).
 
-**Confidence, not eligibility.** `c = 0.7·interest evidence + 0.3·completeness`, where joined-Circle topics can
-supply at most half the interest evidence. Weights are blended as `c·personalized + (1−c)·cold start`, so a sparse
-profile still gets a full list. Strategy: `cold_start` (no interests, no memberships), `personalized` (c ≥ 0.75),
-otherwise `blended`.
+## Tradeoffs
 
-## 3. Scenarios
+- **Rules over ML:** no join outcomes to learn from; transparent weights are a debuggable baseline.
+- **Templates over LLM text:** every clause maps to a reason code (tested), so nothing untrue is claimed.
+- **Seed-time features:** activity, capacity and duplicate clusters change slowly and reads dominate.
+- **SQLite over Postgres:** zero setup for reviewers; the plain SQL ports directly.
+- **Location proxy:** the leader's city stands in for the Circle's; unknown locations are never filtered.
 
-| User | Result |
-| --- | --- |
-| 42, cold start | Ten active Circles across ten topics, virtual and hybrid first: "An active virtual Circle on sponsorship & mentorship…" |
-| 7, obvious | #5 Women Who Lead first (local hybrid), #6 Speak Up Circle second; in-person Circles in other cities are filtered |
-| 15, duplicates | Only #11 of {10, 11, 12}: one result per cluster, highest score wins; #12 is in-person in Denver |
-| 23, full/inactive | #20 `FULL`, #21 `INACTIVE` + `UNLISTED`; #22 Level Up Collective ranks first |
+## Production at scale
 
-`make evaluate` asserts these, plus invariants for all 100 members (`SAMPLE_OUTPUT.md`).
-
-## 4. Tradeoffs
-
-- **Rules over ML.** 100 users and no impressions or join outcomes: nothing to train on. Transparent weights can
-  be explained, debugged and defended, and they become the baseline for a learned ranker later.
-- **Templates over LLM text.** Every clause maps to a reason code and every number to a reason detail (tests
-  enforce this), so an explanation cannot claim something untrue. The cost is less varied wording.
-- **Seed-time features over per-request.** Activity and capacity change slowly; reads dominate. Staleness is
-  bounded by refresh frequency, and capacity must be re-checked at join time anyway.
-- **SQLite over Postgres.** Zero setup for reviewers; plain SQL ports directly. Not suitable for concurrent writes.
-- **Location proxy.** Circles have no location, so a Circle's location is its leader's. An unknown location is
-  never filtered, only scored neutrally (0.5).
-
-## 5. Production at scale
-
-Postgres with read replicas; batch-precomputed recommendations updated incrementally from join, post and capacity
-events; per-user cache invalidated by those events; embedding topic matching with approximate nearest-neighbour
-search; impression and join logging to A/B-test weights, then learning-to-rank; fairness and coverage monitoring
-(exposure by Circle size and age) so small or new Circles are not starved; a conditional update at join time
-(`… WHERE member_count < max_members`) so two members cannot take the last seat.
-
-## 6. With more time
-
-Real Circle location and meeting-time fields; re-ranking so each stated interest is covered early; an opt-in path
-for affinity Circles (topic-less identity or regional groups) rather than ranking them on activity alone.
+Postgres with read replicas; recommendations precomputed in batch and updated from join, post and capacity
+events; per-user cache invalidated by those events; embedding-based topic matching with approximate
+nearest-neighbour search over real descriptions and bios; impression and join logging to A/B-test weights, then
+learning-to-rank; exposure monitoring by Circle size and age so small or new Circles are not starved; a
+conditional update (`WHERE member_count < max_members`) so two members cannot take the last seat. Next: real
+Circle locations, covering every stated interest early, and opt-in affinity Circles.
 
 ## How I used AI tools
 
